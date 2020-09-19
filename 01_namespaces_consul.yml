@@ -1,0 +1,82 @@
+# User-story -> namespaces in Consul
+# Aim: show resource isolation of services
+# Reference: https://youtu.be/Ff6kLvKkJBE
+
+# 1. Register service in namespace=default
+# 2. Create namespaces ["team1", "team2"]
+# 3. Generate admin tokens for namespaces ["team1", "team2"]
+# 4. Use admin token team1: verify, register
+
+# 1. Register service in namespace=default
+- name: Register service 'web' in namespace=default
+  shell: consul services register -name=web -address=1.1.1.1 -port=80
+  environment:
+    CONSUL_HTTP_TOKEN: master
+
+# 2. Create namespaces ["team1", "team2"]
+- name: Create namespace ["team1", "team2"]
+  shell: |
+    consul namespace create -name=team1 -description="Team1 namespace" -meta="team-id=team1" -format=json \
+    && consul namespace create -name=team2 -description="Team2 namespace" -meta="team-id=team2" -format=json
+
+# 3. Generate admin tokens for namespaces ["team1", "team2"]
+- name: Create administrator token for team1
+  shell: >
+    consul acl token create \
+    -format=json \
+    -namespace=team1 \
+    -description="Team1 administrator" \
+    -policy-name="namespace-management" \
+    | jq -r .SecretID
+  register: team1_namespace_admin_token
+
+- name: Create administrator token for team2
+  shell: >
+    consul acl token create \
+    -format=json \
+    -namespace=team2 \
+    -description="Team2 administrator" \
+    -policy-name="namespace-management" \
+    | jq -r .SecretID
+  register: team2_namespace_admin_token
+
+# 4. Use admin token team1: verify, register
+- name: Read token policy with admin token team1
+  shell: consul acl policy read -namespace=team1 -name=namespace-management
+  register: read_policy_try_1
+  environment:
+    CONSUL_HTTP_TOKEN: "{{ team1_namespace_admin_token.stdout }}"
+  until: read_policy_try_1.rc == 0
+  retries: 5
+  delay: 1
+
+- name: Try to access another policy
+  shell: consul acl policy read -namespace=team2 -name=namespace-management
+  register: read_policy_try_2
+  environment:
+    CONSUL_HTTP_TOKEN: "{{ team1_namespace_admin_token.stdout }}"
+  until: read_policy_try_2.rc == 1
+  retries: 5
+  delay: 1
+
+### !!! Does not work
+- name: Try register service 'web' in namespace=default with admin token team1 - should fail
+  shell: consul services register -namespace=default -name=web -address=1.1.1.1 -port=80
+  register: register_service_try_1
+  environment:
+    CONSUL_HTTP_TOKEN: "{{ team1_namespace_admin_token.stdout }}"
+  until: register_service_try_1.rc != 0
+  retries: 5
+  delay: 1
+
+- name: Try register service 'web' in namespace=team2 with admin token team1 - should fail
+  shell: consul services register -namespace=team2 -name=web -address=1.1.1.1 -port=80
+  register: register_service_try_2
+  environment:
+    CONSUL_HTTP_TOKEN: "{{ team1_namespace_admin_token.stdout }}"
+  until: register_service_try_2.rc != 0
+  retries: 5
+  delay: 1
+
+
+
