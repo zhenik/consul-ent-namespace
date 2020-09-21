@@ -1,5 +1,7 @@
 # Consul - namespaces
 
+
+## Local
 To install consul 1.8.4 ent version
 ```text
 make install
@@ -7,12 +9,18 @@ make install
 
 To run consul dev mode
 ```text
-make consul
+make consul-local
 ```
 
 To run playbook
 ```text
-make tun
+make run-local
+```
+
+## Remote
+
+```text
+make run
 ```
 
 ## Requirements

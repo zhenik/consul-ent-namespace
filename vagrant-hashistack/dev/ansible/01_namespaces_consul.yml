@@ -11,7 +11,7 @@
 # 3. [Problems]
 
 - name: Verify that consul acl enabled and default_policy is deny
-  shell: ./consul acl policy list
+  shell: consul acl policy list
   register: consul_acl_default_policy_check
   environment:
     CONSUL_HTTP_TOKEN: ""
@@ -20,14 +20,14 @@
 
 # 1.1 Register service in namespace=default with m
 - name: Register service 'web' in namespace=default
-  shell: ./consul services register -name=web -address=1.1.1.1 -port=80
+  shell: consul services register -name=web -address=1.1.1.1 -port=80
   register: register_service_try_1
   environment:
     CONSUL_HTTP_TOKEN: master
   failed_when: register_service_try_1.rc > 0
 
 - name: De-register service 'web' in namespace=default
-  shell: ./consul services deregister -namespace default -id=web
+  shell: consul services deregister -namespace default -id=web
   environment:
     CONSUL_HTTP_TOKEN: master
   failed_when: register_service_try_1.rc > 0
@@ -36,8 +36,8 @@
 # 1.2 Create namespaces ["team1", "team2"]
 - name: Create namespace ["team1", "team2"]
   shell: |
-    ./consul namespace create -name=team1 -description="Team1 namespace" -meta="team-id=team1" -format=json \
-    && ./consul namespace create -name=team2 -description="Team2 namespace" -meta="team-id=team2" -format=json
+    consul namespace create -name=team1 -description="Team1 namespace" -meta="team-id=team1" -format=json \
+    && consul namespace create -name=team2 -description="Team2 namespace" -meta="team-id=team2" -format=json
   environment:
     CONSUL_HTTP_TOKEN: master
   failed_when: register_service_try_1.rc > 0
@@ -46,7 +46,7 @@
 # 1.3 Generate admin tokens for namespaces ["team1", "team2"]
 - name: Create administrator token for team1
   shell: >
-    ./consul acl token create \
+    consul acl token create \
     -format=json \
     -namespace=team1 \
     -description="Team1 administrator" \
@@ -58,7 +58,7 @@
 
 - name: Create administrator token for team2
   shell: >
-    ./consul acl token create \
+    consul acl token create \
     -format=json \
     -namespace=team2 \
     -description="Team2 administrator" \
@@ -70,14 +70,14 @@
 
 # 2.1 Verify, try register
 - name: Try to read namespace-management policy namespace team1 with admin token team1 - success
-  shell: ./consul acl policy read -namespace=team1 -name=namespace-management
+  shell: consul acl policy read -namespace=team1 -name=namespace-management
   register: read_policy_try_1
   environment:
     CONSUL_HTTP_TOKEN: "{{ team1_namespace_admin_token.stdout }}"
   failed_when: read_policy_try_1.rc > 0
 
 - name: Try to read namespace-management policy namespace team2 with admin token team1 - should fail
-  shell: ./consul acl policy read -namespace=team2 -name=namespace-management
+  shell: consul acl policy read -namespace=team2 -name=namespace-management
   register: read_policy_try_2
   environment:
     CONSUL_HTTP_TOKEN: "{{ team1_namespace_admin_token.stdout }}"
@@ -85,7 +85,7 @@
   failed_when: read_policy_try_2.rc == 0
 
 - name: Try to read namespace-management policy namespace team2 without any token - should fail
-  shell: ./consul acl policy read -namespace=team2 -name=namespace-management
+  shell: consul acl policy read -namespace=team2 -name=namespace-management
   register: read_policy_try_3
   environment:
     CONSUL_HTTP_TOKEN: ""
@@ -93,7 +93,7 @@
   failed_when: read_policy_try_3.rc == 0
 
 - name: Try register service 'web' in namespace=default with admin token team1 - should fail
-  shell: ./consul services register -namespace=default -name=web -address=1.1.1.1 -port=80
+  shell: consul services register -namespace=default -name=web -address=1.1.1.1 -port=80
   register: register_service_try_2
   environment:
     CONSUL_HTTP_TOKEN: "{{ team1_namespace_admin_token.stdout }}"
@@ -105,7 +105,7 @@
     msg: "register_service_try_2 {{ register_service_try_2 }}"
 
 - name: Try register service 'web' in namespace=team2 with admin token team1 - should fail
-  shell: ./consul services register -namespace=team2 -name=web -address=1.1.1.1 -port=80
+  shell: consul services register -namespace=team2 -name=web -address=1.1.1.1 -port=80
   register: register_service_try_3
   environment:
     CONSUL_HTTP_TOKEN: "{{ team1_namespace_admin_token.stdout }}"
@@ -117,7 +117,7 @@
     msg: "register_service_try_3 {{ register_service_try_3 }}"
 
 - name: Try register service 'web' in namespace=team1 with admin token team1 - success
-  shell: ./consul services register -namespace=team1 -name=web -address=1.1.1.1 -port=80
+  shell: consul services register -namespace=team1 -name=web -address=1.1.1.1 -port=80
   register: register_service_try_4
   environment:
     CONSUL_HTTP_TOKEN: "{{ team1_namespace_admin_token.stdout }}"
@@ -132,14 +132,14 @@
 # Does not fail
 # checking list access
 - name: Try list catalog namespace team2 without any token - should fail?
-  shell: ./consul catalog services -namespace=team2
+  shell: consul catalog services -namespace=team2
   register: list_catalog_try_1
   # fail if success?
 #  failed_when: list_catalog_try_1.rc == 0
 
 # Does not fail
 - name: Try list catalog namespace=team2 without token - should fail
-  shell: ./consul catalog services -namespace=team2
+  shell: consul catalog services -namespace=team2
   register: list_catalog_try_2
   # fail if success?
 #  failed_when: list_catalog_try_2.rc == 0

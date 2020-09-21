@@ -20,12 +20,17 @@ unzip:
 	chmod +x ./consul
 
 ### consul run
-consul:
+consul-local:
 	./consul agent -dev -config-file=consul-config.hcl
 
 ### ansible
-run:
+run-local:
 	ansible-playbook playbook.yml
+
+run:
+	cd vagrant-hashistack; make up
+destroy:
+	cd vagrant-hashistack; make clean
 
 ### debug
 # deregister services (token: master)
