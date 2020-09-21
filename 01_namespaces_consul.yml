@@ -10,6 +10,14 @@
 #   1. Verify, try register
 # 3. [Problems]
 
+- name: Verify that consul acl enabled and default_policy is deny
+  shell: ./consul acl policy list
+  register: consul_acl_default_policy_check
+  environment:
+    CONSUL_HTTP_TOKEN: ""
+  # must exit:1 -> 403 unauthorized
+  failed_when: consul_acl_default_policy_check.rc == 0
+
 # 1.1 Register service in namespace=default with m
 - name: Register service 'web' in namespace=default
   shell: ./consul services register -name=web -address=1.1.1.1 -port=80
