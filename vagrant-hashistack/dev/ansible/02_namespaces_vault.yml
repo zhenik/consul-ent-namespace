@@ -1,0 +1,12 @@
+## User-story -> namespaces in Vault
+## Aim: show resource isolation of services
+## Reference: https://learn.hashicorp.com/tutorials/vault/namespaces
+#
+#- name: Verify that consul acl enabled and default_policy is deny
+#  shell: consul acl policy list
+#  register: consul_acl_default_policy_check
+#  environment:
+#    CONSUL_HTTP_TOKEN: ""
+#  # must exit:1 -> 403 unauthorized
+#  failed_when: consul_acl_default_policy_check.rc == 0
+#
