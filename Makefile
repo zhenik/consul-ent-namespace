@@ -1,5 +1,6 @@
 UNAME := $(shell uname -s)
-version := 1.8.4+ent
+consul_version := 1.8.4+ent
+vault_version := 1.5.3+ent
 
 .PHONY: consul
 
@@ -8,16 +9,21 @@ install: download unzip
 
 download:
 ifeq ($(UNAME),Linux)
-	curl -L -s https://releases.hashicorp.com/consul/${version}/consul_${version}_linux_amd64.zip -o consul.zip
+	curl -L -s https://releases.hashicorp.com/consul/${consul_version}/consul_${consul_version}_linux_amd64.zip -o consul.zip
+	curl -L -s https://releases.hashicorp.com/vault/{vault_version}/vault_${vault_version}_linux_amd64.zip -o vault.zip
 endif
 ifeq ($(UNAME),Darwin)
-	curl -L -s http://releases.hashicorp.com/consul/${version}/consul_${version}_darwin_amd64.zip -o consul.zip
+	curl -L -s http://releases.hashicorp.com/consul/${consul_version}/consul_${consul_version}_darwin_amd64.zip -o consul.zip
+	curl -L -s https://releases.hashicorp.com/vault/${vault_version}/vault_${vault_version}_darwin_amd64.zip -o vault.zip
 endif
 
 unzip:
 	unzip consul.zip
+	unzip vault.zip
 	rm consul.zip
+	rm vault.zip
 	chmod +x ./consul
+	chmod +x ./vault
 
 ### consul run
 consul-local:
