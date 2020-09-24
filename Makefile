@@ -2,7 +2,7 @@ UNAME := $(shell uname -s)
 consul_version := 1.8.4+ent
 vault_version := 1.5.3+ent
 
-.PHONY: consul
+.PHONY: consul vault
 
 ### consul installation
 install: download unzip
@@ -30,13 +30,16 @@ consul-local:
 	./consul agent -dev -config-file=consul-config.hcl
 
 ### ansible
-run-local:
-	ansible-playbook playbook.yml
+#run-local:
+#	ansible-playbook playbook.yml
+#
+#run:
+#	cd vagrant-hashistack; make up
+#destroy:
+#	cd vagrant-hashistack; make clean
 
-run:
-	cd vagrant-hashistack; make up
-destroy:
-	cd vagrant-hashistack; make clean
+vault:
+	./vault server -dev -dev-root-token-id=master -config=./
 
 ### debug
 # deregister services (token: master)

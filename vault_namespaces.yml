@@ -1,0 +1,72 @@
+# User-story -> namespaces in Consul
+# Aim: show resource isolation of services
+# Reference: https://youtu.be/Ff6kLvKkJBE
+
+---
+- hosts: localhost
+  tasks:
+# 1. Namespaces
+    - name: Create namepspace 'education'
+      shell: ./vault namespace create education
+      register: namespace_created_1
+      environment:
+        VAULT_TOKEN: "master"
+        VAULT_ADDR: "http://127.0.0.1:8200"
+
+    - name: Create child namespace 'training'
+      shell: ./vault namespace create -namespace=education training
+      environment:
+        VAULT_TOKEN: "master"
+        VAULT_ADDR: "http://127.0.0.1:8200"
+
+    - name: Create child namespace 'certification'
+      shell: ./vault namespace create -namespace=education certification
+      environment:
+        VAULT_TOKEN: "master"
+        VAULT_ADDR: "http://127.0.0.1:8200"
+
+    - name: List the existing namespaces on the root
+      shell: ./vault namespace list
+      register: namespace_list_root
+      environment:
+        VAULT_TOKEN: "master"
+        VAULT_ADDR: "http://127.0.0.1:8200"
+
+    - name: List child namespaces under 'education'
+      shell: ./vault namespace list -namespace=education
+      register: namespace_list_childs
+      environment:
+        VAULT_TOKEN: "master"
+        VAULT_ADDR: "http://127.0.0.1:8200"
+
+# 2. Policies
+
+    - name: Create 'edu-admin' policy under 'education' namespace
+      shell: ./vault policy write -namespace=education edu-admin policy/vault/edu-admin.hcl
+      environment:
+        VAULT_TOKEN: "master"
+        VAULT_ADDR: "http://127.0.0.1:8200"
+
+    - name: Create 'training-admin' policy under 'education/training' namespace
+      shell: ./vault policy write -namespace=education/training training-admin policy/vault/training-admin.hcl
+      environment:
+        VAULT_TOKEN: "master"
+        VAULT_ADDR: "http://127.0.0.1:8200"
+
+# 3. Setup entities and groups
+
+    - name: Enable the userpass auth method
+      shell: ./vault auth enable -namespace=education userpass
+      environment:
+        VAULT_TOKEN: "master"
+        VAULT_ADDR: "http://127.0.0.1:8200"
+
+    - name: Create a user bob
+      shell: ./vault write -namespace=education auth/userpass/users/bob password="training"
+      environment:
+        VAULT_TOKEN: "master"
+        VAULT_ADDR: "http://127.0.0.1:8200"
+
+    - name: Create an entity for Bob Smith with edu-admin policy attached. Save the generated entity ID in a file named entity_id.txt
+      shell: ./vault write -namespace=education -format=json identity/entity name="Bob Smith" \
+        policies="edu-admin" | jq -r ".data.id" > entity_id.txt
