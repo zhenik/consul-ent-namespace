@@ -1,45 +1,51 @@
 # User-story -> namespaces in Consul
-# Aim: show resource isolation of services
-# Reference: https://youtu.be/Ff6kLvKkJBE
+# Aim: show resource isolation
+# Reference: https://learn.hashicorp.com/tutorials/vault/namespaces
+
+# 1. Create namespaces ["education", "education/training", "education/certification"]
+# 2. Create policies ["edu-admin", "training-admin"]
+# 3. Setup entities and groups
+# 4. Test the 'Bob' entity
+# 5. Test the Training Admin group
 
 ---
 - hosts: localhost
   tasks:
-# 1. Namespaces
-    - name: Create namepspace 'education'
+# 1. Create namespaces ["education", "education/training", "education/certification"]
+    - name: Create namepspace education
       shell: ./vault namespace create education
-      register: namespace_created_1
       environment:
         VAULT_TOKEN: "master"
         VAULT_ADDR: "http://127.0.0.1:8200"
 
-    - name: Create child namespace 'training'
+    - name: Create namespace 'education/training'
       shell: ./vault namespace create -namespace=education training
       environment:
         VAULT_TOKEN: "master"
         VAULT_ADDR: "http://127.0.0.1:8200"
 
-    - name: Create child namespace 'certification'
+    - name: Create namespace 'education/certification'
       shell: ./vault namespace create -namespace=education certification
       environment:
         VAULT_TOKEN: "master"
         VAULT_ADDR: "http://127.0.0.1:8200"
 
-    - name: List the existing namespaces on the root
-      shell: ./vault namespace list
+    - name: List the existing namespaces on the root, verify list contains 'education/'
+      shell: ./vault namespace list -format=json | jq -r '.[]' | grep education/
       register: namespace_list_root
       environment:
         VAULT_TOKEN: "master"
         VAULT_ADDR: "http://127.0.0.1:8200"
 
-    - name: List child namespaces under 'education'
-      shell: ./vault namespace list -namespace=education
+    - name: List child namespaces under 'education', verify list contains 'certification' and 'training'
+      shell: ./vault namespace list -namespace=education -format=json
       register: namespace_list_childs
       environment:
         VAULT_TOKEN: "master"
         VAULT_ADDR: "http://127.0.0.1:8200"
+      failed_when: namespace_list_childs.stdout is not search("certification") and namespace_list_childs.stdout is not search("training")
 
-# 2. Policies
+# 2. Create policies ["edu-admin", "training-admin"]
 
     - name: Create 'edu-admin' policy under 'education' namespace
       shell: ./vault policy write -namespace=education edu-admin policy/vault/edu-admin.hcl
@@ -106,7 +112,7 @@
         VAULT_TOKEN: "master"
         VAULT_ADDR: "http://127.0.0.1:8200"
 
-# 4. Test the Bob Smith entity
+# 4. Test the 'Bob' entity
 
     - name: Login as bob in namespace 'education' and get client token
       shell: ./vault login -method=userpass username=bob password=training -format=json | jq -r ".auth.client_token"
@@ -140,3 +146,32 @@
         VAULT_ADDR: "http://127.0.0.1:8200"
         VAULT_TOKEN: "{{ bob_education_token.stdout }}"
       failed_when: try_enable_kv2_1.rc > 0
+
+# 5. Test the Training Admin group
+
+    - name: Token lookup
+      shell: ./vault token lookup
+      register: bob_lookup_token_1
+      environment:
+        VAULT_NAMESPACE: "education"
+        VAULT_ADDR: "http://127.0.0.1:8200"
+        VAULT_TOKEN: "{{ bob_education_token.stdout }}"
+
+    - name: Debug bob_lookup_token_1
+      debug:
+        msg: "bob_lookup_token_1 {{ bob_lookup_token_1 }}"
+
+    - name: Create namespace education/training/vault-training/
+      shell: ./vault namespace create vault-training
+      register: bob_lookup_token_1
+      environment:
+        VAULT_NAMESPACE: "education/training"
+        VAULT_ADDR: "http://127.0.0.1:8200"
+        VAULT_TOKEN: "{{ bob_education_token.stdout }}"
+
+    - name: Enable key/value v1 secrets engine at team-secret
+      shell: ./vault secrets enable -path=team-secret -version=1 kv
+      environment:
+        VAULT_NAMESPACE: "education/training"
+        VAULT_ADDR: "http://127.0.0.1:8200"
+        VAULT_TOKEN: "{{ bob_education_token.stdout }}"
